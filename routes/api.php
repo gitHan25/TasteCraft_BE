@@ -16,5 +16,9 @@ Route::get('/user', function (Request $request) {
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::delete('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
+
 //User Controller
+
 Route::get('/user/profile-image', [UserController::class, 'getProfileImage'])->middleware('auth:sanctum');
+Route::put('/user/profile-image', [UserController::class, 'updateProfileImage'])->middleware('auth:sanctum');
+
