@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Melihovv\Base64ImageDecoder\Base64ImageDecoder;
 use Illuminate\Support\Str;
@@ -41,20 +42,35 @@ class AuthController extends Controller
             ], 400);
         }
 
-        $user = User::create([
-            'first_name' => $request->first_name,
-            'last_name' => $request->last_name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'profile_image' => $profile_image,
-        ]);
-        $user->save();
+        try {
+            DB::beginTransaction();
 
-        return response()->json([
-            'message' => 'Akun berhasil dibuat!',
-            'user' => $user,
+            $user = User::create([
+                'first_name' => $request->first_name,
+                'last_name' => $request->last_name,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+                'profile_image' => $profile_image,
 
-        ], 201);
+                'role' => 'user',
+            ]);
+            $user->save();
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Akun berhasil dibuat!',
+                'user' => $user,
+            ], 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat membuat akun',
+            ], 500);
+        }
     }
 
     public function uploadBase64Image($base64Image)
@@ -74,6 +90,7 @@ class AuthController extends Controller
     }
     public function login(Request $request)
     {
+
         $request->validate([
             'email' => 'required|string|email',
             'password' => 'required|string',
@@ -91,6 +108,7 @@ class AuthController extends Controller
         $user->token_expires_at = now()->addHours(1);
         $user->save();
         return response()->json([
+            'user' => $request->$user->role,
             'X-API-TOKEN' => $token,
             'token_type' => 'Bearer',
         ], 200);

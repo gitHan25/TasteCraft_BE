@@ -68,4 +68,18 @@ class UserController extends Controller
             ], 400);
         }
     }
+
+    public function getUser(Request $request)
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json([
+                'message' => 'Unauthorized',
+            ], 401);
+        }
+        return response()->json([
+            'user' => $user,
+            'profile_image_url' => $user->profile_image ? Storage::url($user->profile_image) : null,
+        ]);
+    }
 }
