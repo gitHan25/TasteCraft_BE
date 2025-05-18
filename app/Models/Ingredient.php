@@ -3,9 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class Ingredient extends Model
 {
+    use HasUuids;
+
     protected $table = 'ingredients';
     protected $fillable = [
         'name',

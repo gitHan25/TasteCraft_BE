@@ -26,8 +26,7 @@ class User extends Authenticatable
         'profile_image',
         'token',
         'token_expires_at',
-
-
+        'role'
     ];
 
     /**

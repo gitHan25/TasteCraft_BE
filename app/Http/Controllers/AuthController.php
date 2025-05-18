@@ -108,7 +108,7 @@ class AuthController extends Controller
         $user->token_expires_at = now()->addHours(1);
         $user->save();
         return response()->json([
-            'user' => $request->$user->role,
+            'role' => $user->role,
             'X-API-TOKEN' => $token,
             'token_type' => 'Bearer',
         ], 200);
