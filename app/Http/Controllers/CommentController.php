@@ -21,20 +21,30 @@ class CommentController extends Controller
      */
     public function getAllCommentsInRecipe($recipeId)
     {
-        $comments = Comment::with('user')
-            ->where('recipe_id', $recipeId)
-            ->latest()
-            ->get();
+        try {
+            $comments = Comment::with('user:id,first_name,last_name,profile_image')
+                ->where('recipe_id', $recipeId)
+                ->latest()
+                ->get();
 
-        return response()->json([
-            'status' => 'success',
-            'data' => $comments
-        ]);
+            return response()->json([
+                'status' => 'success',
+                'data' => $comments,
+                'total' => $comments->count()
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to fetch comments',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
 
     public function store(Request $request)
     {
+        $user = Auth::user();
         $validator = Validator::make($request->all(), [
             'recipe_id' => 'required|exists:recipes,id',
             'content' => 'required|string|max:1000'
@@ -50,12 +60,12 @@ class CommentController extends Controller
 
         try {
             $comment = Comment::create([
-                'user_id' => $request->user()->id(),
+                'user_id' => $user->id,
                 'recipe_id' => $request->recipe_id,
                 'content' => $request->content
             ]);
 
-            $comment->load('user');
+            $comment->load('user:id,first_name,last_name,profile_image');
 
             return response()->json([
                 'status' => 'success',
@@ -77,7 +87,7 @@ class CommentController extends Controller
         try {
             $comment = Comment::findOrFail($id);
 
-            if ($comment->user_id !== $request()->user()->id()) {
+            if ($comment->user_id !== Auth::id()) {
                 return response()->json([
                     'status' => 'error',
                     'message' => 'Unauthorized. You can only update your own comments.'
@@ -100,7 +110,7 @@ class CommentController extends Controller
                 'content' => $request->content
             ]);
 
-            $comment->load('user');
+            $comment->load('user:id,first_name,last_name,profile_image');
 
             return response()->json([
                 'status' => 'success',
@@ -124,7 +134,7 @@ class CommentController extends Controller
         try {
             $comment = Comment::findOrFail($id);
 
-            if ($comment->user_id !== request()->user()->id()) {
+            if ($comment->user_id !== Auth::id()) {
                 return response()->json([
                     'status' => 'error',
                     'message' => 'Unauthorized. You can only delete your own comments.'

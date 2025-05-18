@@ -7,43 +7,73 @@ use App\Http\Controllers\RecipeController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-// Global middleware group
+/*
+|--------------------------------------------------------------------------
+| Authentication Routes
+|--------------------------------------------------------------------------
+*/
 
-// Public routes with rate limiting
-Route::middleware(['guest'])->group(function () {
-    Route::post('/register', [AuthController::class, 'register']);
-    Route::post('/login', [AuthController::class, 'login']);
-});
-
-// Protected routes
-Route::middleware(['auth:sanctum'])->group(function () {
-    Route::get('/user', function (Request $request) {
-        return $request->user();
+Route::prefix('auth')->group(function () {
+    // Guest routes
+    Route::middleware(['guest'])->group(function () {
+        Route::post('/register', [AuthController::class, 'register']);
+        Route::post('/login', [AuthController::class, 'login']);
     });
 
-    Route::delete('/logout', [AuthController::class, 'logout']);
-
-    // User profile routes
-    Route::get('/user/profile-image', [UserController::class, 'getProfileImage']);
-    Route::put('/user/profile-image', [UserController::class, 'updateProfileImage']);
-
-    // Comment routes that require authentication
-    Route::post('/comments', [CommentController::class, 'store']);
-    Route::put('/comments/{id}', [CommentController::class, 'update']);
-    Route::delete('/comments/{id}', [CommentController::class, 'destroy']);
-
-
-    Route::get('/user/recipes', [RecipeController::class, 'getAllRecipe']);
+    // Authenticated routes
+    Route::middleware(['auth:sanctum'])->group(function () {
+        Route::delete('/logout', [AuthController::class, 'logout']);
+    });
 });
 
-// Public comment routes
+/*
+|--------------------------------------------------------------------------
+| Public Routes
+|--------------------------------------------------------------------------
+*/
+// Public recipe routes
 Route::get('/recipes/{recipeId}/comments', [CommentController::class, 'getAllCommentsInRecipe']);
 
+/*
+|--------------------------------------------------------------------------
+| Protected Routes
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth:sanctum'])->group(function () {
+    // User profile
+    Route::prefix('user')->group(function () {
+        Route::get('/', function (Request $request) {
+            return $request->user();
+        });
+        Route::get('/profile-image', [UserController::class, 'getProfileImage']);
+        Route::put('/profile-image', [UserController::class, 'updateProfileImage']);
+        Route::get('/recipes', [RecipeController::class, 'getAllRecipe']);
+    });
 
-// Admin routes
-Route::middleware(['auth:sanctum', 'IsAdmin'])->group(function () {
-    Route::post('/recipes', [RecipeController::class, 'store']);
-    Route::get('/recipes', [RecipeController::class, 'index']);
-    Route::put('/recipes/{id}', [RecipeController::class, 'update']);
-    Route::delete('/recipes/{id}', [RecipeController::class, 'destroy']);
+    // Recipe routes
+    Route::prefix('recipes')->group(function () {
+        Route::get('/{recipeId}', [RecipeController::class, 'getDetailReceipt']);
+    });
+
+    // Comment management
+    Route::prefix('comments')->group(function () {
+        Route::post('/', [CommentController::class, 'store']);
+        Route::put('/{id}', [CommentController::class, 'update']);
+        Route::delete('/{id}', [CommentController::class, 'destroy']);
+    });
+});
+
+/*
+|--------------------------------------------------------------------------
+| Admin Routes
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth:sanctum', 'IsAdmin'])->prefix('admin')->group(function () {
+    // Recipe management
+    Route::prefix('recipes')->group(function () {
+        Route::get('/', [RecipeController::class, 'index']);
+        Route::post('/', [RecipeController::class, 'store']);
+        Route::put('/{id}', [RecipeController::class, 'update']);
+        Route::delete('/{id}', [RecipeController::class, 'destroy']);
+    });
 });

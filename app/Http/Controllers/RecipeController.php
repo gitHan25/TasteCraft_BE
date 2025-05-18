@@ -3,14 +3,23 @@
 namespace App\Http\Controllers;
 
 use App\Models\Recipe;
-
+use App\Http\Controllers\AuthController;
+use App\Models\Comment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 class RecipeController extends Controller
 {
+    protected $authController;
+
+    public function __construct(AuthController $authController)
+    {
+        $this->authController = $authController;
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -49,7 +58,7 @@ class RecipeController extends Controller
             'description' => 'required|string',
             'cooking_time' => 'required|integer',
             'category' => 'required|string',
-            'image_url' => 'nullable|image|max:2048',
+            'image_url' => 'nullable|string',
             'ingredients' => 'required|array|min:1',
             'ingredients.*.ingredient_name' => 'required|string',
             'ingredients.*.quantity' => 'required|string',
@@ -79,11 +88,38 @@ class RecipeController extends Controller
                 'user_id' => $request->user()->id
             ]);
 
+            // Handle image upload
+            if ($request->has('image_url')) {
+                $image = $request->image_url;
+
+                // Check if image is base64
+                if (strpos($image, 'data:image') === 0) {
+                    // Handle base64 image
+                    $image = str_replace('data:image/png;base64,', '', $image);
+                    $image = str_replace('data:image/jpeg;base64,', '', $image);
+                    $image = str_replace(' ', '+', $image);
+
+                    $imageName = 'recipe_' . Str::uuid() . '.png';
+                    Storage::disk('public')->put('recipe_images/' . $imageName, base64_decode($image));
+
+                    $recipe->image_url = 'recipe_images/' . $imageName;
+                } else {
+
+                    $imageName = 'recipe_' . time() . '.' . $request->image_url->extension();
+                    $request->image_url->storeAs('public/recipe_images', $imageName);
+
+                    $recipe->image_url = 'recipe_images/' . $imageName;
+                }
+
+                $recipe->save();
+            }
+
             // Create ingredients
             foreach ($request->ingredients as $ingredient) {
                 $recipe->ingredients()->create([
                     'name' => $ingredient['ingredient_name'],
-                    'quantity' => $ingredient['quantity']
+                    'quantity' => $ingredient['quantity'],
+                    'unit' => $ingredient['unit']
                 ]);
             }
 
@@ -107,6 +143,12 @@ class RecipeController extends Controller
             ], 201);
         } catch (\Exception $e) {
             DB::rollBack();
+
+            // Delete uploaded image if exists
+            if (isset($imageName)) {
+                Storage::disk('public')->delete('recipe_images/' . $imageName);
+            }
+
             return response()->json([
                 'status' => 'error',
                 'message' => 'Failed to create recipe',
@@ -132,10 +174,6 @@ class RecipeController extends Controller
         ]);
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-
 
     /**
      * Update the specified resource in storage.
@@ -153,7 +191,7 @@ class RecipeController extends Controller
             'title' => 'sometimes|required|string|max:255',
             'description' => 'sometimes|string',
             'cooking_time' => 'sometimes|integer',
-            'category' => 'sometimesstring',
+            'category' => 'sometimes|string',
             'image_url' => 'nullable|image|max:2048',
             'ingredients' => 'sometimes|array|min:1',
             'ingredients.*.ingredient_name' => 'string',
@@ -203,7 +241,7 @@ class RecipeController extends Controller
                 $recipe->ingredients()->delete();
                 foreach ($request->ingredients as $ingredient) {
                     $recipe->ingredients()->create([
-                        'ingredient_name' => $ingredient['ingredient_name'],
+                        'name' => $ingredient['ingredient_name'],
                         'quantity' => $ingredient['quantity'],
                         'unit' => $ingredient['unit']
                     ]);
@@ -294,12 +332,41 @@ class RecipeController extends Controller
             return response()->json([
                 'status' => 'success',
                 'data' => $recipes,
+
                 'total' => $recipes->count()
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Failed to fetch recipes',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+    public function getDetailReceipt($recipeId)
+    {
+        try {
+            $recipe = Recipe::with([
+                'ingredients',
+                'steps',
+                'user:id,first_name,last_name,profile_image',
+                'comments' => function ($query) {
+                    $query->with('user:id,first_name,last_name,profile_image')
+                        ->latest();
+                }
+            ])->findOrFail($recipeId);
+
+            return response()->json([
+                'status' => 'success',
+                'data' => [
+                    'recipe' => $recipe,
+                    'comments_count' => $recipe->comments->count()
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to fetch recipe details',
                 'error' => $e->getMessage()
             ], 500);
         }
