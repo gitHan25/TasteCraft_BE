@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BookmarkController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\RecipeController;
@@ -60,6 +61,15 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/', [CommentController::class, 'store']);
         Route::put('/{id}', [CommentController::class, 'update']);
         Route::delete('/{id}', [CommentController::class, 'destroy']);
+
+
+    });
+
+    // Bookmark routes
+    Route::prefix('bookmarks')->group(function () {
+        Route::get('/', [BookmarkController::class, 'index']);
+        Route::post('/', [BookmarkController::class, 'store']);
+        Route::delete('/{id}', [BookmarkController::class, 'destroy']);
     });
 });
 

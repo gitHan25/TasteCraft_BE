@@ -192,7 +192,7 @@ class RecipeController extends Controller
             'description' => 'sometimes|string',
             'cooking_time' => 'sometimes|integer',
             'category' => 'sometimes|string',
-            'image_url' => 'nullable|image|max:2048',
+            'image_url' => 'nullable|string',
             'ingredients' => 'sometimes|array|min:1',
             'ingredients.*.ingredient_name' => 'string',
             'ingredients.*.quantity' => 'string',
@@ -201,11 +201,6 @@ class RecipeController extends Controller
             'steps.*.step_number' => 'integer',
             'steps.*.description' => 'string',
         ]);
-
-
-
-
-
 
         if ($validator->fails()) {
             return response()->json([
@@ -243,7 +238,7 @@ class RecipeController extends Controller
                     $recipe->ingredients()->create([
                         'name' => $ingredient['ingredient_name'],
                         'quantity' => $ingredient['quantity'],
-                        'unit' => $ingredient['unit']
+
                     ]);
                 }
             }
@@ -282,12 +277,7 @@ class RecipeController extends Controller
     public function destroy(Request $request, $id)
     {
         $recipe = Recipe::findOrFail($id);
-        if ($recipe->user_id !== $request->user()->id()) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Unauthorized, you can only delete your own recipes'
-            ], 403);
-        }
+
         try {
             DB::beginTransaction();
 
